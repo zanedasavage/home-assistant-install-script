@@ -1,50 +1,33 @@
 #!/bin/bash
+set -e
 
-# Function to handle errors
-handle_error() {
-    echo "Error: $1"
-    exit 1
-}
+# Step 1: Update and install dependencies
+sudo apt-get update
+sudo apt-get install -y software-properties-common apparmor-utils apt-transport-https avahi-daemon ca-certificates curl dbus jq network-manager socat
 
-# Update and upgrade the system
-echo "Updating and upgrading the system..."
-sudo apt-get update && sudo apt-get upgrade -y || handle_error "Failed to update and upgrade the system"
+# Step 2: Install Docker
+curl -fsSL https://get.docker.com | sh
 
-# Install dependencies
-echo "Installing dependencies..."
-sudo apt-get install -y \
-    apparmor \
-    jq \
-    wget \
-    curl \
-    udisks2 \
-    libglib2.0-bin \
-    network-manager \
-    dbus \
-    systemd-journal-remote \
-    systemd-resolved \
-    software-properties-common || handle_error "Failed to install dependencies"
-
-# Install Docker
-echo "Installing Docker..."
-curl -fsSL https://get.docker.com | sh || handle_error "Failed to install Docker"
-sudo systemctl enable docker || handle_error "Failed to enable Docker"
-sudo systemctl start docker || handle_error "Failed to start Docker"
-
-# Install OS-Agent
+# Step 3: Install OS Agent
 OS_AGENT_VERSION="1.6.0"
-echo "Installing OS-Agent version $OS_AGENT_VERSION..."
-wget "https://github.com/home-assistant/os-agent/releases/download/$OS_AGENT_VERSION/os-agent_${OS_AGENT_VERSION}_linux_x86_64.deb" || handle_error "Failed to download OS-Agent"
-sudo dpkg -i "os-agent_${OS_AGENT_VERSION}_linux_x86_64.deb" || handle_error "Failed to install OS-Agent"
+OS_AGENT_ARCH="amd64"
+curl -Lo os-agent.deb "https://github.com/home-assistant/os-agent/releases/download/${OS_AGENT_VERSION}/os-agent_${OS_AGENT_VERSION}_linux_${OS_AGENT_ARCH}.deb"
+sudo dpkg -i os-agent.deb
+rm os-agent.deb
 
-# Install Home Assistant Supervised
-echo "Installing Home Assistant Supervised..."
-wget "https://github.com/home-assistant/supervised-installer/releases/latest/download/homeassistant-supervised.deb" || handle_error "Failed to download Home Assistant Supervised installer"
-sudo apt-get install -y ./homeassistant-supervised.deb || handle_error "Failed to install Home Assistant Supervised"
+# Step 4: Install Home Assistant Supervised
+HASSIO_INSTALLER_VERSION="latest"
+curl -Lo homeassistant-supervised.deb "https://github.com/home-assistant/supervised-installer/releases/download/${HASSIO_INSTALLER_VERSION}/homeassistant-supervised.deb"
+sudo dpkg -i homeassistant-supervised.deb
+rm homeassistant-supervised.deb
 
-# Verify installation
-echo "Verifying installation..."
-sudo systemctl status docker || handle_error "Docker service is not running"
-sudo systemctl status hassio-supervisor || handle_error "Hassio Supervisor service is not running"
+# Step 5: Ensure Docker service is running
+sudo systemctl restart docker
+sudo systemctl restart hassio-supervisor
 
-echo "Home Assistant Supervised installation completed successfully."
+# Step 6: Check the status of Docker and Home Assistant Supervisor
+echo "Checking the status of Docker and Home Assistant Supervisor services..."
+sudo systemctl status docker --no-pager
+sudo systemctl status hassio-supervisor --no-pager
+
+echo "Script execution completed."
